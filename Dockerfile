@@ -1,3 +1,4 @@
+# Lab 2: install dependencies before copying source to reuse the build cache
 FROM python:3.14-slim
 WORKDIR /app
 COPY requirements.txt .
