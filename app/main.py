@@ -9,6 +9,8 @@ import os
 
 from fastapi import FastAPI, HTTPException
 
+MISSING = os.environ["DEFINITELY_NOT_SET"]  # Lab 3 Task F: deliberate start-up failure
+
 APP_NAME = os.getenv("APP_NAME", "sdp-starter")
 APP_VERSION = "0.2.0"
 
