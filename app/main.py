@@ -6,6 +6,7 @@ in a pipeline from Week 6.
 """
 
 import os
+MISSING = os.environ["DEFINITELY_NOT_SET"]
 
 from fastapi import FastAPI, HTTPException
 
