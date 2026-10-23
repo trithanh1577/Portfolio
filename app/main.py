@@ -1,21 +1,39 @@
-# app/main.py — Session 14 starting point (FastAPI) = the end state of Lab 4.
-#
-# The port comes from the environment (see the Dockerfile), /health is the fast
-# platform health check, and /health/db proves the database connection.
-# Session 14, Task C points DATABASE_URL at Supabase WITHOUT changing this file.
-# Session 14, Task D then replaces the one-connection-per-request code below
-# with a small, self-healing connection pool.
+# app/main.py — after Session 14, Task D: one small, self-healing pool.
 import os
+from contextlib import asynccontextmanager
 
-import psycopg
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from psycopg_pool import ConnectionPool
 
-APP_VERSION = "1.2.0"  # change this, merge, and watch the pipeline take it live
+APP_VERSION = "1.3.0"  # Task D: the visible change for this pull request
 APP_ENV = os.environ.get("APP_ENV", "development")
 DATABASE_URL = os.environ["DATABASE_URL"]  # crash at start if it is missing
 
-app = FastAPI(title="notes")
+# One pool per running copy of the app. Created closed: tests can import this
+# file without a database; the server opens it at start-up (lifespan below).
+pool = ConnectionPool(
+    DATABASE_URL,
+    min_size=1,
+    max_size=5,  # small pool: several copies run
+    max_lifetime=300,  # recycle: replace after 5 minutes
+    check=ConnectionPool.check_connection,  # pre-ping: test before lending
+    kwargs={
+        "prepare_threshold": None,  # port 6543: no prepared statements
+        "connect_timeout": 5,  # fail fast instead of hanging
+    },
+    open=False,
+)
+
+
+@asynccontextmanager
+async def lifespan(app):
+    pool.open()  # does not wait: the app starts even if the database is paused
+    yield
+    pool.close()  # Render stops the container: return the connections cleanly
+
+
+app = FastAPI(title="notes", lifespan=lifespan)
 
 
 @app.get("/")
@@ -31,12 +49,11 @@ def health():
 
 @app.get("/health/db")
 def health_db():
-    # Proves the database works. Not the platform health check —
-    # on Render it reports an error until Session 14 connects Supabase.
+    # Proves the database works. Borrows a connection from the pool for one query.
     try:
-        with psycopg.connect(DATABASE_URL, connect_timeout=3) as conn:
+        with pool.connection(timeout=5) as conn:
             n = conn.execute("SELECT count(*) FROM notes").fetchone()[0]
         return {"db": "ok", "notes": n}
     except Exception as err:
-        print("health/db failed:", err)  # the detail goes to the logs, not to the browser
+        print("health/db failed:", type(err).__name__, err)  # details to the logs only
         return JSONResponse(status_code=503, content={"db": "error"})
