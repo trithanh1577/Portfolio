@@ -1,47 +1,42 @@
-"""Starter application for 72ITDS30103 Software Development Platforms.
-
-A deliberately small web API. You will containerise it in Lab 2,
-connect it to PostgreSQL in Week 4, deploy it in Lab 3 and test it
-in a pipeline from Week 6.
-"""
-
+# app/main.py — Session 14 starting point (FastAPI) = the end state of Lab 4.
+#
+# The port comes from the environment (see the Dockerfile), /health is the fast
+# platform health check, and /health/db proves the database connection.
+# Session 14, Task C points DATABASE_URL at Supabase WITHOUT changing this file.
+# Session 14, Task D then replaces the one-connection-per-request code below
+# with a small, self-healing connection pool.
 import os
 
-from fastapi import FastAPI, HTTPException
+import psycopg
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
-APP_NAME = os.getenv("APP_NAME", "sdp-starter")
-APP_VERSION = "0.4.0"
+APP_VERSION = "1.2.0"  # change this, merge, and watch the pipeline take it live
+APP_ENV = os.environ.get("APP_ENV", "development")
+DATABASE_URL = os.environ["DATABASE_URL"]  # crash at start if it is missing
 
-app = FastAPI(title=APP_NAME, version=APP_VERSION)
-
-# In-memory data. Week 4 replaces this with a PostgreSQL table.
-ITEMS = [
-    {"id": 1, "name": "Write a Dockerfile", "done": False},
-    {"id": 2, "name": "Run it with Compose", "done": False},
-    {"id": 3, "name": "Deploy it to Render", "done": False},
-]
+app = FastAPI(title="notes")
 
 
 @app.get("/")
-def root():
-    """Proves the app is reachable. Open /docs for the interactive API page."""
-    return {"app": APP_NAME, "version": APP_VERSION, "message": "Hello from the starter app"}
+def home():
+    return {"app": "notes", "status": "running", "version": APP_VERSION, "env": APP_ENV}
 
 
 @app.get("/health")
 def health():
-    """Used by Render (Lab 3) and the pipeline (Week 6) to check the app is alive."""
+    # Fast, no login, touches nothing. Render's health check path points here.
     return {"status": "ok"}
 
 
-@app.get("/items")
-def list_items():
-    return ITEMS
-
-
-@app.get("/items/{item_id}")
-def get_item(item_id: int):
-    for item in ITEMS:
-        if item["id"] == item_id:
-            return item
-    raise HTTPException(status_code=404, detail="Item not found")
+@app.get("/health/db")
+def health_db():
+    # Proves the database works. Not the platform health check —
+    # on Render it reports an error until Session 14 connects Supabase.
+    try:
+        with psycopg.connect(DATABASE_URL, connect_timeout=3) as conn:
+            n = conn.execute("SELECT count(*) FROM notes").fetchone()[0]
+        return {"db": "ok", "notes": n}
+    except Exception as err:
+        print("health/db failed:", err)  # the detail goes to the logs, not to the browser
+        return JSONResponse(status_code=503, content={"db": "error"})

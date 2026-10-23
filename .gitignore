@@ -1,44 +1,9 @@
-# Python
 __pycache__/
-*.py[cod]
-.pytest_cache/
-
-# Virtual environments
+*.pyc
 .venv/
-venv/
-
-# Secrets: never commit these
+.pytest_cache/
+.ruff_cache/
+# every local env file (.env, .env.cloud, ...) — but the example IS committed
 .env
 .env.*
 !.env.example
-
-# Editors and OS
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-# Python
-__pycache__/
-*.py[cod]
-.pytest_cache/
-
-# Virtual environments
-.venv/
-venv/
-
-# Secrets: never commit these
-.env
-.env.*
-!.env.example
-
-# Editors and OS
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log

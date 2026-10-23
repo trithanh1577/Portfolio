@@ -1,14 +1,16 @@
+# .github/workflows/ci-cd.yml — the finished Lab 4 pipeline (Python).
+# check:  lint + test on every pull request and every push to main.
+# deploy: after a merge to main, and only if check passed, ask Render to deploy.
 name: CI/CD
 
 on:
-  pull_request:
+  pull_request:               # check every pull request
   push:
-    branches: [main]
+    branches: [ main ]        # and every merge to main
 
 jobs:
   check:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v7
 
@@ -27,8 +29,8 @@ jobs:
         run: pytest -q
 
   deploy:
-    needs: check
-    if: github.event_name == 'push'
+    needs: check                        # only after check has passed
+    if: github.event_name == 'push'     # only after a merge to main, never on a PR
     runs-on: ubuntu-latest
     steps:
       - name: Trigger the Render deploy
